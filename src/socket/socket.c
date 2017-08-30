@@ -30,11 +30,16 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#if defined(__MINGW32__)
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
+#endif
 #include <fcntl.h>
 #include <errno.h>
 
@@ -182,6 +187,13 @@ int mbus_socket_set_blocking (struct mbus_socket *socket, int on)
 		mbus_errorf("socket is null");
 		return -1;
 	}
+#if defined(__MINGW32__)
+	u_long opt = on ? 1 : 0;
+	rc = ioctlsocket(socket->fd, FIONBIO, &opt);
+	if (rc != NO_ERROR) {
+		return -1;
+	}
+#else
 	flags = fcntl(socket->fd, F_GETFL, 0);
 	if (flags < 0) {
 		mbus_errorf("can not get flags");
@@ -193,11 +205,16 @@ int mbus_socket_set_blocking (struct mbus_socket *socket, int on)
 		mbus_errorf("can not set flags");
 		return -1;
 	}
+#endif
 	return 0;
 }
 
 int mbus_socket_get_blocking (struct mbus_socket *socket)
 {
+#if defined(__MINGW32__)
+	/* TODO */
+	return 0;
+#else
 	int flags;
 	if (socket == NULL) {
 		mbus_errorf("socket is null");
@@ -209,6 +226,7 @@ int mbus_socket_get_blocking (struct mbus_socket *socket)
 		return -1;
 	}
 	return flags & O_NONBLOCK;
+#endif
 }
 
 int mbus_socket_set_keepalive (struct mbus_socket *socket, int on)
@@ -255,11 +273,15 @@ int mbus_socket_set_keepcnt (struct mbus_socket *socket, int value)
 		return -1;
 	}
 	opt = value;
+#if defined(__MINGW32__)
+	/* TODO */
+#else
 	rc = setsockopt(socket->fd, SOL_SOCKET, TCP_KEEPCNT, &opt, sizeof(opt));
 	if (rc < 0) {
 		mbus_errorf("setsockopt keepcnt failed");
 		return -1;
 	}
+#endif	
 	return 0;
 }
 
@@ -273,11 +295,15 @@ int mbus_socket_get_keepcnt (struct mbus_socket *socket)
 		return -1;
 	}
 	optlen = sizeof(opt);
+#if defined(__MINGW32__)
+	/* TODO */
+#else
 	rc = getsockopt(socket->fd, SOL_SOCKET, TCP_KEEPCNT, &opt, &optlen);
 	if (rc < 0) {
 		mbus_errorf("setsockopt keepcnt failed");
 		return -1;
 	}
+#endif
 	return opt;
 }
 
@@ -344,11 +370,15 @@ int mbus_socket_set_keepintvl (struct mbus_socket *socket, int value)
 		return -1;
 	}
 	opt = value;
+#if defined(__MINGW32__)
+	/* TODO */
+#else
 	rc = setsockopt(socket->fd, SOL_SOCKET, TCP_KEEPINTVL, &opt, sizeof(opt));
 	if (rc < 0) {
 		mbus_errorf("setsockopt keepintvl failed");
 		return -1;
 	}
+#endif
 	return 0;
 }
 
@@ -362,11 +392,15 @@ int mbus_socket_get_keepintvl (struct mbus_socket *socket)
 		return -1;
 	}
 	optlen = sizeof(opt);
+#if defined(__MINGW32__)
+	/* TODO */
+#else
 	rc = getsockopt(socket->fd, SOL_SOCKET, TCP_KEEPINTVL, &opt, &optlen);
 	if (rc < 0) {
 		mbus_errorf("setsockopt keepintvl failed");
 		return -1;
 	}
+#endif
 	return opt;
 }
 
@@ -374,7 +408,9 @@ int mbus_socket_connect (struct mbus_socket *socket, const char *address, unsign
 {
 	int rc;
 	struct sockaddr_in sockaddr_in;
-	struct sockaddr_un sockaddr_un;
+#if !defined(__MINGW32__)
+struct sockaddr_un sockaddr_un;
+#endif
 	if (address == NULL) {
 		mbus_errorf("address is null");
 		return -1;
@@ -388,10 +424,12 @@ int mbus_socket_connect (struct mbus_socket *socket, const char *address, unsign
 		}
 		sockaddr_in.sin_port = htons(port);
 		rc = connect(socket->fd, (struct sockaddr *) &sockaddr_in , sizeof(sockaddr_in));
+#if !defined(__MINGW32__)		
 	} else if (socket->domain == AF_UNIX) {
 		sockaddr_un.sun_family = socket->domain;
 		snprintf(sockaddr_un.sun_path, sizeof(sockaddr_un.sun_path) - 1, "%s:%d", address, port);
 		rc = connect(socket->fd, (struct sockaddr *) &sockaddr_un , sizeof(sockaddr_un));
+#endif
 	} else {
 		mbus_errorf("unknown socket domain");
 		goto bail;
@@ -408,7 +446,9 @@ int mbus_socket_bind (struct mbus_socket *socket, const char *address, unsigned 
 {
 	int rc;
 	struct sockaddr_in sockaddr_in;
+#if !defined(__MINGW32__)	
 	struct sockaddr_un sockaddr_un;
+#endif
 	if (socket->domain == AF_INET) {
 		sockaddr_in.sin_family = socket->domain;
 		if (address == NULL) {
@@ -422,6 +462,7 @@ int mbus_socket_bind (struct mbus_socket *socket, const char *address, unsigned 
 		}
 		sockaddr_in.sin_port = htons(port);
 		rc = bind(socket->fd, (struct sockaddr *) &sockaddr_in , sizeof(sockaddr_in));
+#if !defined(__MINGW32__)		
 	} else if (socket->domain == AF_UNIX) {
 		sockaddr_un.sun_family = socket->domain;
 		snprintf(sockaddr_un.sun_path, sizeof(sockaddr_un.sun_path) - 1, "%s:%d", address, port);
@@ -429,6 +470,7 @@ int mbus_socket_bind (struct mbus_socket *socket, const char *address, unsigned 
 			unlink(sockaddr_un.sun_path);
 		}
 		rc = bind(socket->fd, (struct sockaddr *) &sockaddr_un , sizeof(sockaddr_un));
+#endif
 	} else {
 		mbus_errorf("unknown socket domain");
 		goto bail;

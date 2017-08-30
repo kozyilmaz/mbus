@@ -18,6 +18,15 @@ unsigned long mbus_clock_get (void)
     return ((unsigned long) difftime(csec, bsec)) * 1000;
 }
 
+#elif defined(__MINGW32__)
+
+#include <time.h>
+
+unsigned long mbus_clock_get (void)
+{
+	return 42;
+}
+
 #else
 
 #include <time.h>

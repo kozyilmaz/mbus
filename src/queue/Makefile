@@ -4,6 +4,7 @@ distdir = ../../dist
 dist.base = mbus
 
 dist.include-y = \
-	tailq.h
+	tailq.h \
+	queue.h
 
 include ../../Makefile.lib

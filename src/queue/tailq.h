@@ -26,7 +26,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/queue.h>
+#include "queue.h"
 
 /*
  * Tail queue definitions.

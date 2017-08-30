@@ -34,10 +34,14 @@
 #include <getopt.h>
 #include <errno.h>
 
+#if defined(__MINGW32__)
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
 #include <poll.h>
 #include <signal.h>
-
 #include <arpa/inet.h>
+#endif
 
 #if defined(SSL_ENABLE) && (SSL_ENABLE == 1)
 #include <openssl/ssl.h>

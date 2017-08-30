@@ -31,7 +31,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include <arpa/inet.h>
 
 #define MBUS_DEBUG_NAME	"mbus-buffer"
 
