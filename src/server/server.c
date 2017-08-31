@@ -33,6 +33,7 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <errno.h>
+#include <signal.h>
 
 #if defined(__MINGW32__)
 #include <winsock2.h>
@@ -41,7 +42,6 @@
 #include <poll.h>
 #include <arpa/inet.h>
 #endif
-#include <signal.h>
 
 #if defined(SSL_ENABLE) && (SSL_ENABLE == 1)
 #include <openssl/ssl.h>

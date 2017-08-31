@@ -31,6 +31,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#if defined(__MINGW32__)
+#include <winsock2.h>
+#else
+#include <arpa/inet.h>
+#endif
 
 #define MBUS_DEBUG_NAME	"mbus-buffer"
 

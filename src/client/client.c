@@ -34,13 +34,14 @@
 #include <getopt.h>
 #include <errno.h>
 #include <pthread.h>
+#include <time.h>
+#include <sys/time.h>
 
 #if defined(__MINGW32__)
 #include <winsock2.h>
 #define poll WSAPoll
 #else
 #include <poll.h>
-#include <sys/time.h>
 #include <arpa/inet.h>
 #endif
 

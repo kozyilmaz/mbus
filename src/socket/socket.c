@@ -30,6 +30,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <fcntl.h>
+#include <errno.h>
+
 #if defined(__MINGW32__)
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -40,8 +43,6 @@
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
 #endif
-#include <fcntl.h>
-#include <errno.h>
 
 #define MBUS_DEBUG_NAME	"mbus-socket"
 
