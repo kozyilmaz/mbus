@@ -19,6 +19,7 @@ unsigned long mbus_clock_get (void)
 }
 
 #elif defined(__MINGW32__)
+#warning "mbus_clock_get() for MinGW missing"
 
 #include <time.h>
 

@@ -18,6 +18,7 @@ libmbus-server.so_ldflags-y += \
 
 libmbus-server.so_ldflags-y += \
 	-lmbus-debug \
+	-lmbus-compat \
 	-lmbus-buffer \
 	-lmbus-clock \
 	-lmbus-compress \

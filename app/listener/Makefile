@@ -22,6 +22,7 @@ mbus-listener_ldflags-y = \
 	-lmbus-buffer \
 	-lmbus-json-cJSON \
 	-lmbus-compress \
+	-lmbus-compat \
 	-lmbus-debug
 
 mbus-listener_ldflags-${SSL_ENABLE} += \
@@ -32,7 +33,9 @@ mbus-listener_ldflags-${ZLIB_ENABLE} += \
 
 mbus-listener_ldflags-y += \
 	-lpthread \
-	-lm \
+	-lm
+
+mbus-listener_ldflags-n += \
 	-ldl
 
 distdir = ../../dist

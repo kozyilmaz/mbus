@@ -215,6 +215,10 @@ TARGET_OS := UNKNOWN
 endif
 
 ifeq      ($(TARGET_OS),WINDOWS)
+	override __MINGW__  = y
+	override MFLAGS     += __MINGW__=y
+	override CFLAGS     += -D__MINGW__=1
+	override CFLAGS     += -DWINVER=0x0601 -D_WIN32_WINNT=0x0601 -D_POSIX=1
 else ifeq ($(TARGET_OS),MACOS)
 	override __DARWIN__  = y
 	override MFLAGS     += __DARWIN__=y

@@ -33,10 +33,16 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <errno.h>
-#include <poll.h>
 #include <pthread.h>
+
+#if defined(__MINGW32__)
+#include <winsock2.h>
+#define poll WSAPoll
+#else
+#include <poll.h>
 #include <sys/time.h>
 #include <arpa/inet.h>
+#endif
 
 #if defined(SSL_ENABLE) && (SSL_ENABLE == 1)
 #include <openssl/ssl.h>
@@ -47,6 +53,7 @@
 
 #include "mbus/json.h"
 #include "mbus/debug.h"
+#include "mbus/compat.h"
 #include "mbus/compress.h"
 #include "mbus/buffer.h"
 #include "mbus/clock.h"
@@ -848,7 +855,7 @@ static void * client_worker (void *arg)
 					}
 
 					mbus_debugf("message: '%.*s'", uncompressed, data);
-					string = strndup((char *) data, uncompressed);
+					string = mbus_strndup((char *) data, uncompressed);
 					if (string == NULL) {
 						mbus_errorf("can not allocate memory");
 						if (data != ptr) {

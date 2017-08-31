@@ -1,6 +1,7 @@
 
 subdir-y = \
 	debug \
+	compat \
 	buffer \
 	client \
 	clock \

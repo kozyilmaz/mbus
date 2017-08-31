@@ -212,8 +212,8 @@ int mbus_socket_set_blocking (struct mbus_socket *socket, int on)
 int mbus_socket_get_blocking (struct mbus_socket *socket)
 {
 #if defined(__MINGW32__)
-	/* TODO */
-	return 0;
+#warning "mbus_socket_get_blocking() for MinGW missing"
+	return -1;
 #else
 	int flags;
 	if (socket == NULL) {
@@ -274,7 +274,7 @@ int mbus_socket_set_keepcnt (struct mbus_socket *socket, int value)
 	}
 	opt = value;
 #if defined(__MINGW32__)
-	/* TODO */
+#warning "mbus_socket_set_keepcnt() for MinGW missing"
 #else
 	rc = setsockopt(socket->fd, SOL_SOCKET, TCP_KEEPCNT, &opt, sizeof(opt));
 	if (rc < 0) {
@@ -296,7 +296,7 @@ int mbus_socket_get_keepcnt (struct mbus_socket *socket)
 	}
 	optlen = sizeof(opt);
 #if defined(__MINGW32__)
-	/* TODO */
+#warning "mbus_socket_get_keepcnt() for MinGW missing"
 #else
 	rc = getsockopt(socket->fd, SOL_SOCKET, TCP_KEEPCNT, &opt, &optlen);
 	if (rc < 0) {
@@ -371,7 +371,7 @@ int mbus_socket_set_keepintvl (struct mbus_socket *socket, int value)
 	}
 	opt = value;
 #if defined(__MINGW32__)
-	/* TODO */
+#warning "mbus_socket_set_keepintvl() for MinGW missing"
 #else
 	rc = setsockopt(socket->fd, SOL_SOCKET, TCP_KEEPINTVL, &opt, sizeof(opt));
 	if (rc < 0) {
@@ -393,7 +393,7 @@ int mbus_socket_get_keepintvl (struct mbus_socket *socket)
 	}
 	optlen = sizeof(opt);
 #if defined(__MINGW32__)
-	/* TODO */
+#warning "mbus_socket_get_keepintvl() for MinGW missing"
 #else
 	rc = getsockopt(socket->fd, SOL_SOCKET, TCP_KEEPINTVL, &opt, &optlen);
 	if (rc < 0) {
@@ -408,7 +408,9 @@ int mbus_socket_connect (struct mbus_socket *socket, const char *address, unsign
 {
 	int rc;
 	struct sockaddr_in sockaddr_in;
-#if !defined(__MINGW32__)
+#if defined(__MINGW32__)
+#warning "mbus_socket_connect() MinGW does not support AF_UNIX"
+#else
 struct sockaddr_un sockaddr_un;
 #endif
 	if (address == NULL) {
@@ -424,7 +426,7 @@ struct sockaddr_un sockaddr_un;
 		}
 		sockaddr_in.sin_port = htons(port);
 		rc = connect(socket->fd, (struct sockaddr *) &sockaddr_in , sizeof(sockaddr_in));
-#if !defined(__MINGW32__)		
+#if !defined(__MINGW32__)
 	} else if (socket->domain == AF_UNIX) {
 		sockaddr_un.sun_family = socket->domain;
 		snprintf(sockaddr_un.sun_path, sizeof(sockaddr_un.sun_path) - 1, "%s:%d", address, port);
@@ -446,7 +448,9 @@ int mbus_socket_bind (struct mbus_socket *socket, const char *address, unsigned 
 {
 	int rc;
 	struct sockaddr_in sockaddr_in;
-#if !defined(__MINGW32__)	
+#if defined(__MINGW32__)
+#warning "mbus_socket_bind() MinGW does not support AF_UNIX"
+#else
 	struct sockaddr_un sockaddr_un;
 #endif
 	if (socket->domain == AF_INET) {
@@ -462,7 +466,7 @@ int mbus_socket_bind (struct mbus_socket *socket, const char *address, unsigned 
 		}
 		sockaddr_in.sin_port = htons(port);
 		rc = bind(socket->fd, (struct sockaddr *) &sockaddr_in , sizeof(sockaddr_in));
-#if !defined(__MINGW32__)		
+#if !defined(__MINGW32__)
 	} else if (socket->domain == AF_UNIX) {
 		sockaddr_un.sun_family = socket->domain;
 		snprintf(sockaddr_un.sun_path, sizeof(sockaddr_un.sun_path) - 1, "%s:%d", address, port);

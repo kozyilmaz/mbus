@@ -36,12 +36,12 @@
 
 #if defined(__MINGW32__)
 #include <winsock2.h>
-#include <ws2tcpip.h>
+#define poll WSAPoll
 #else
 #include <poll.h>
-#include <signal.h>
 #include <arpa/inet.h>
 #endif
+#include <signal.h>
 
 #if defined(SSL_ENABLE) && (SSL_ENABLE == 1)
 #include <openssl/ssl.h>
@@ -55,6 +55,7 @@
 #define MBUS_DEBUG_NAME	"mbus-server"
 
 #include "mbus/debug.h"
+#include "mbus/compat.h"
 #include "mbus/compress.h"
 #include "mbus/buffer.h"
 #include "mbus/clock.h"
@@ -2743,7 +2744,7 @@ static int ws_protocol_mbus_callback (struct lws *wsi, enum lws_callback_reasons
 						break;
 					}
 					mbus_debugf("message: '%.*s'", expected, ptr);
-					string = strndup((char *) ptr, expected);
+					string = mbus_strndup((char *) ptr, expected);
 					if (string == NULL) {
 						mbus_errorf("can not allocate memory");
 						goto bail;
@@ -3280,7 +3281,7 @@ int mbus_server_run_timeout (struct mbus_server *server, int milliseconds)
 						}
 					}
 					mbus_debugf("        message: '%.*s'", uncompressed, data);
-					string = strndup((char *) data, uncompressed);
+					string = mbus_strndup((char *) data, uncompressed);
 					if (string == NULL) {
 						mbus_errorf("can not allocate memory, closing client: '%s' connection", client_get_name(client));
 						client_set_socket(client, NULL);
@@ -3530,6 +3531,7 @@ struct mbus_server * mbus_server_create (int argc, char *_argv[])
 	argv= NULL;
 	server = NULL;
 
+#if !defined(__MINGW32__)	
 	{
 		struct sigaction sa;
 		memset(&sa, 0, sizeof(struct sigaction));
@@ -3537,6 +3539,7 @@ struct mbus_server * mbus_server_create (int argc, char *_argv[])
 		sa.sa_flags = 0;
 		sigaction(SIGPIPE, &sa, 0);
 	}
+#endif
 
 #if defined(SSL_ENABLE) && (SSL_ENABLE == 1)
 	SSL_library_init();

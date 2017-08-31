@@ -22,6 +22,7 @@ mbus-controller_ldflags-y = \
 	-lmbus-buffer \
 	-lmbus-json-cJSON \
 	-lmbus-compress \
+	-lmbus-compat \
 	-lmbus-debug
 
 mbus-controller_ldflags-${WS_ENABLE} += \
@@ -35,7 +36,9 @@ mbus-controller_ldflags-${ZLIB_ENABLE} += \
 
 mbus-controller_ldflags-y += \
 	-lpthread \
-	-lm \
+	-lm
+
+mbus-controller_ldflags-n += \
 	-ldl
 
 distdir = ../../dist
