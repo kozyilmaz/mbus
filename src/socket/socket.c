@@ -154,7 +154,11 @@ int mbus_socket_set_reuseaddr (struct mbus_socket *socket, int on)
 		return -1;
 	}
 	opt = !!on;
+#if defined(__MINGW32__)
+	rc = setsockopt(socket->fd, SOL_SOCKET, SO_REUSEADDR, (char *) &opt, sizeof(opt));
+#else	
 	rc = setsockopt(socket->fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+#endif
 	if (rc < 0) {
 		mbus_errorf("setsockopt reuseaddr failed");
 		return -1;
@@ -172,7 +176,11 @@ int mbus_socket_get_reuseaddr (struct mbus_socket *socket)
 		return -1;
 	}
 	optlen = sizeof(opt);
+#if defined(__MINGW32__)
+	rc = getsockopt(socket->fd, SOL_SOCKET, SO_REUSEADDR, (char *) &opt, &optlen);
+#else	
 	rc = getsockopt(socket->fd, SOL_SOCKET, SO_REUSEADDR, &opt, &optlen);
+#endif
 	if (rc < 0) {
 		mbus_errorf("setsockopt reuseaddr failed");
 		return -1;
@@ -183,7 +191,6 @@ int mbus_socket_get_reuseaddr (struct mbus_socket *socket)
 int mbus_socket_set_blocking (struct mbus_socket *socket, int on)
 {
 	int rc;
-	int flags;
 	if (socket == NULL) {
 		mbus_errorf("socket is null");
 		return -1;
@@ -195,7 +202,7 @@ int mbus_socket_set_blocking (struct mbus_socket *socket, int on)
 		return -1;
 	}
 #else
-	flags = fcntl(socket->fd, F_GETFL, 0);
+	int flags = fcntl(socket->fd, F_GETFL, 0);
 	if (flags < 0) {
 		mbus_errorf("can not get flags");
 		return -1;
@@ -212,16 +219,15 @@ int mbus_socket_set_blocking (struct mbus_socket *socket, int on)
 
 int mbus_socket_get_blocking (struct mbus_socket *socket)
 {
-#if defined(__MINGW32__)
-#warning "mbus_socket_get_blocking() for MinGW missing"
-	return -1;
-#else
-	int flags;
 	if (socket == NULL) {
 		mbus_errorf("socket is null");
 		return -1;
 	}
-	flags = fcntl(socket->fd, F_GETFL, 0);
+#if defined(__MINGW32__)
+#warning "mbus_socket_get_blocking() for MinGW missing"
+	return -1;
+#else
+	int flags = fcntl(socket->fd, F_GETFL, 0);
 	if (flags < 0) {
 		mbus_errorf("can not get flags");
 		return -1;
@@ -239,7 +245,11 @@ int mbus_socket_set_keepalive (struct mbus_socket *socket, int on)
 		return -1;
 	}
 	opt = !!on;
+#if defined(__MINGW32__)
+	rc = setsockopt(socket->fd, SOL_SOCKET, SO_KEEPALIVE, (char *) &opt, sizeof(opt));
+#else
 	rc = setsockopt(socket->fd, SOL_SOCKET, SO_KEEPALIVE, &opt, sizeof(opt));
+#endif
 	if (rc < 0) {
 		mbus_errorf("setsockopt keepalive failed");
 		return -1;
@@ -257,7 +267,11 @@ int mbus_socket_get_keepalive (struct mbus_socket *socket)
 		return -1;
 	}
 	optlen = sizeof(opt);
+#if defined(__MINGW32__)
+	rc = getsockopt(socket->fd, SOL_SOCKET, SO_KEEPALIVE, (char *) &opt, &optlen);
+#else	
 	rc = getsockopt(socket->fd, SOL_SOCKET, SO_KEEPALIVE, &opt, &optlen);
+#endif
 	if (rc < 0) {
 		mbus_errorf("setsockopt keepalive failed");
 		return -1;
@@ -267,45 +281,46 @@ int mbus_socket_get_keepalive (struct mbus_socket *socket)
 
 int mbus_socket_set_keepcnt (struct mbus_socket *socket, int value)
 {
-	int rc;
-	int opt;
 	if (socket == NULL) {
 		mbus_errorf("socket is null");
 		return -1;
 	}
-	opt = value;
 #if defined(__MINGW32__)
 #warning "mbus_socket_set_keepcnt() for MinGW missing"
+	(void) value;
+	return -1;
 #else
+	int rc;
+	int opt = value;
 	rc = setsockopt(socket->fd, SOL_SOCKET, TCP_KEEPCNT, &opt, sizeof(opt));
 	if (rc < 0) {
 		mbus_errorf("setsockopt keepcnt failed");
 		return -1;
 	}
-#endif	
 	return 0;
+#endif
 }
 
 int mbus_socket_get_keepcnt (struct mbus_socket *socket)
 {
-	int rc;
-	int opt;
-	socklen_t optlen;
 	if (socket == NULL) {
 		mbus_errorf("socket is null");
 		return -1;
 	}
-	optlen = sizeof(opt);
 #if defined(__MINGW32__)
 #warning "mbus_socket_get_keepcnt() for MinGW missing"
+	return -1;
 #else
+	int rc;
+	int opt;
+	socklen_t optlen = sizeof(opt);
 	rc = getsockopt(socket->fd, SOL_SOCKET, TCP_KEEPCNT, &opt, &optlen);
 	if (rc < 0) {
 		mbus_errorf("setsockopt keepcnt failed");
 		return -1;
 	}
-#endif
 	return opt;
+#endif
 }
 
 int mbus_socket_set_keepidle (struct mbus_socket *socket, int value)
@@ -364,45 +379,46 @@ int mbus_socket_get_keepidle (struct mbus_socket *socket)
 
 int mbus_socket_set_keepintvl (struct mbus_socket *socket, int value)
 {
-	int rc;
-	int opt;
 	if (socket == NULL) {
 		mbus_errorf("socket is null");
 		return -1;
 	}
-	opt = value;
 #if defined(__MINGW32__)
 #warning "mbus_socket_set_keepintvl() for MinGW missing"
+	(void) value;
+	return -1;
 #else
+	int rc;
+	int opt = value;
 	rc = setsockopt(socket->fd, SOL_SOCKET, TCP_KEEPINTVL, &opt, sizeof(opt));
 	if (rc < 0) {
 		mbus_errorf("setsockopt keepintvl failed");
 		return -1;
 	}
-#endif
 	return 0;
+#endif
 }
 
 int mbus_socket_get_keepintvl (struct mbus_socket *socket)
 {
-	int rc;
-	int opt;
-	socklen_t optlen;
 	if (socket == NULL) {
 		mbus_errorf("socket is null");
 		return -1;
 	}
-	optlen = sizeof(opt);
 #if defined(__MINGW32__)
 #warning "mbus_socket_get_keepintvl() for MinGW missing"
+	return -1;
 #else
+	int rc;
+	int opt;
+	socklen_t optlen = sizeof(opt);
 	rc = getsockopt(socket->fd, SOL_SOCKET, TCP_KEEPINTVL, &opt, &optlen);
 	if (rc < 0) {
 		mbus_errorf("setsockopt keepintvl failed");
 		return -1;
 	}
-#endif
 	return opt;
+#endif
 }
 
 int mbus_socket_connect (struct mbus_socket *socket, const char *address, unsigned short port)
