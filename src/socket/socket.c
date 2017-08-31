@@ -196,6 +196,7 @@ int mbus_socket_set_blocking (struct mbus_socket *socket, int on)
 		return -1;
 	}
 #if defined(__MINGW32__)
+#warning "mbus_socket_set_blocking() for MinGW needs review"
 	u_long opt = on ? 1 : 0;
 	rc = ioctlsocket(socket->fd, FIONBIO, &opt);
 	if (rc != NO_ERROR) {

@@ -3531,7 +3531,9 @@ struct mbus_server * mbus_server_create (int argc, char *_argv[])
 	argv= NULL;
 	server = NULL;
 
-#if !defined(__MINGW32__)	
+#if defined(__MINGW32__)
+#warning "sigaction() for MinGW needs review"
+#else
 	{
 		struct sigaction sa;
 		memset(&sa, 0, sizeof(struct sigaction));

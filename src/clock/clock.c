@@ -19,13 +19,14 @@ unsigned long mbus_clock_get (void)
 }
 
 #elif defined(__MINGW32__)
-#warning "mbus_clock_get() for MinGW missing"
+#warning "mbus_clock_get() for MinGW needs review"
 
-#include <time.h>
+#include <sysinfoapi.h>
 
 unsigned long mbus_clock_get (void)
 {
-	return 42;
+	/* https://msdn.microsoft.com/en-us/library/windows/desktop/ms724411(v=vs.85).aspx */
+	return GetTickCount64();
 }
 
 #else
