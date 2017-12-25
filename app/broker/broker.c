@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2014, Alper Akcan <alper.akcan@gmail.com>
+ * Copyright (c) 2014-2017, Alper Akcan <alper.akcan@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,8 +42,7 @@ static void signal_handler (int signal)
 	g_running = 0;
 }
 
-#define OPTION_HELP		0x100
-#define OPTION_SUBSCRIBE	0x101
+#define OPTION_HELP		'h'
 static struct option longopts[] = {
 	{ "help",			no_argument,		NULL,	OPTION_HELP },
 	{ NULL,				0,			NULL,	0 },
@@ -51,9 +50,9 @@ static struct option longopts[] = {
 
 static void usage (void)
 {
-	fprintf(stdout, "mbus controller arguments:\n");
-	fprintf(stdout, "  --help                   : this text\n");
-	fprintf(stdout, "  --mbus-help              : mbus help text\n");
+	fprintf(stdout, "mbus broker arguments:\n");
+	fprintf(stdout, "  --help     : this text\n");
+	fprintf(stdout, "  --mbus-help: mbus help text\n");
 	mbus_server_usage();
 }
 
@@ -83,7 +82,7 @@ int main (int argc, char *argv[])
 		_argv[_argc] = argv[_argc];
 	}
 
-	while ((c = getopt_long(_argc, _argv, ":", longopts, NULL)) != -1) {
+	while ((c = getopt_long(_argc, _argv, ":h", longopts, NULL)) != -1) {
 		switch (c) {
 			case OPTION_HELP:
 				usage();
