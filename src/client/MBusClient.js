@@ -1,4 +1,31 @@
 
+/*
+ * Copyright (c) 2014-2018, Alper Akcan <alper.akcan@gmail.com>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *    * Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *    * Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in the
+ *      documentation and/or other materials provided with the distribution.
+ *    * Neither the name of the copyright holder nor the
+ *      names of its contributors may be used to endorse or promote products
+ *      derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 //WebSocket = require('ws');
 //TextEncoder = require('text-encoder-lite');
 //module.exports = MBusClient
@@ -30,18 +57,17 @@ const MBUS_SERVER_COMMAND_CREATE                  = "command.create";
 const MBUS_SERVER_COMMAND_EVENT                   = "command.event";
 const MBUS_SERVER_COMMAND_CALL                    = "command.call";
 const MBUS_SERVER_COMMAND_RESULT                  = "command.result";
-const MBUS_SERVER_COMMAND_STATUS                  = "command.status";
-const MBUS_SERVER_COMMAND_CLIENTS                 = "command.clients";
 const MBUS_SERVER_COMMAND_SUBSCRIBE               = "command.subscribe";
 const MBUS_SERVER_COMMAND_UNSUBSCRIBE             = "command.unsubscribe";
 const MBUS_SERVER_COMMAND_REGISTER                = "command.register";
 const MBUS_SERVER_COMMAND_UNREGISTER              = "command.unregister";
-const MBUS_SERVER_COMMAND_CLOSE                   = "command.close";
 
 const MBUS_SERVER_EVENT_CONNECTED                 = "org.mbus.server.event.connected";
 const MBUS_SERVER_EVENT_DISCONNECTED              = "org.mbus.server.event.disconnected";
 const MBUS_SERVER_EVENT_SUBSCRIBED                = "org.mbus.server.event.subscribed";
 const MBUS_SERVER_EVENT_UNSUBSCRIBED              = "org.mbus.server.event.unsubscribed";
+const MBUS_SERVER_EVENT_REGISTERED                = "org.mbus.server.event.regitered";
+const MBUS_SERVER_EVENT_UNREGISTERED              = "org.mbus.server.event.unregitered";
 
 const MBUS_SERVER_EVENT_PING                      = "org.mbus.server.event.ping";
 const MBUS_SERVER_EVENT_PONG                      = "org.mbus.server.event.pong";
@@ -54,7 +80,7 @@ String.prototype.format = function() {
 	return a
 }
 
-function mbus_clock_get () {
+function mbus_clock_monotonic () {
 	var d = new Date();
 	return d.getTime();
 }
@@ -72,7 +98,7 @@ function mbus_clock_before (a, b) {
 }
 
 var MBusClientDefaults = Object.freeze({
-    ClientIdentifier  : null,
+    Identifier        : null,
     
     ServerWSProtocol  : "ws",
     ServerWSAddress   : "127.0.0.1",
@@ -119,7 +145,7 @@ var MBusClientConnectStatus = Object.freeze({
     Timeout                 : 5,
     Canceled                : 6,
     InvalidProtocolVersion  : 7,
-    InvalidClientIdentifier : 8,
+    InvalidIdentifier       : 8,
     ServerError             : 9
 })
 
@@ -148,8 +174,8 @@ function MBusClientConnectStatusString (status) {
     if (status == MBusClientConnectStatus.InvalidProtocolVersion) {
     	return "invalid protocol version";
     }
-    if (status == MBusClientConnectStatus.InvalidClientIdentifier) {
-        return "invalid client identifier";
+    if (status == MBusClientConnectStatus.InvalidIdentifier) {
+        return "invalid identifier";
     }
     if (status == MBusClientConnectStatus.ServerError) {
         return "server error";
@@ -316,15 +342,18 @@ function MBusClientCommandStatusString (status) {
 
 function MBusClientOptions () {
     this.identifier       = null;
+    
     this.serverProtocol   = null;
     this.serverAddress    = null;
     this.serverPort       = null;
+    
     this.connectTimeout   = null;
     this.connectInterval  = null;
     this.subscribeTimeout = null;
     this.registerTimeout  = null;
     this.commandTimeout   = null;
     this.publishTimeout   = null;
+    
     this.pingInterval     = null;
     this.pingTimeout      = null;
     this.pingThreshold    = null;
@@ -332,6 +361,7 @@ function MBusClientOptions () {
     this.onConnect        = null;
     this.onDisconnect     = null;
     this.onMessage        = null;
+    this.onResult         = null;
     this.onRoutine        = null;
     this.onPublish        = null;
     this.onSubscribe      = null;
@@ -363,7 +393,7 @@ function MBusClientRequest (type, destination, identifier, sequence, payload, ca
     this.callback    = callback;
     this.context     = context;
     this.timeout     = timeout;
-    this.createdAt   = mbus_clock_get();
+    this.createdAt   = mbus_clock_monotonic();
 }
 
 MBusClientRequest.prototype.stringify = function () {
@@ -440,11 +470,11 @@ function MBusClient (options = null) {
 	if (options == undefined) {
 		this.__options = new MBusClientOptions();
 	} else {
-		this.__options = options;
+		this.__options = Object.assign(new MBusClientOptions(), options);
 	}
     
 	if (this.__options.identifier == null) {
-		this.__options.identifier = MBusClientDefaults.ClientIdentifier;
+		this.__options.identifier = MBusClientDefaults.Identifier;
 	}
     
 	if (this.__options.connectTimeout == null ||
@@ -513,8 +543,9 @@ function MBusClient (options = null) {
 	this.__pingTimer = setInterval(function __pingTimerCallback(thiz) {
 		if (thiz.__state == MBusClientState.Connected &&
 			thiz.__pingInterval > 0) {
-			current = mbus_clock_get();
-			if (mbus_clock_after(current, thiz.__pingSendTsms + thiz.__pingInterval)) {
+			current = mbus_clock_monotonic();
+			if (thiz.__pingWaitPong == 0 &&
+			    mbus_clock_after(current, thiz.__pingSendTsms + thiz.__pingInterval)) {
 				thiz.__pingSendTsms = current;
 				thiz.__pongRecvTsms = 0;
 				thiz.__pingWaitPong = 1;
@@ -590,9 +621,15 @@ function MBusClient (options = null) {
 	}
 
 	this.__notifyCommand = function (request, response, status) {
+		callback = this.__options.onResult;
+		context = this.__options.onContext
 		if (request.callback != null) {
+			callback = request.callback;
+			context = request.context;
+		}
+		if (callback != null) {
 			message = new MBusClientMessageCommand(request, response);
-			request.callback(this, request.context, message, status);
+			callback(this, context, message, status);
 		}
 	}
 
@@ -610,6 +647,7 @@ function MBusClient (options = null) {
 
 	this.__reset = function () {
 		if (this.__socket != null) {
+			this.__socket.close();
 			this.__socket = null;
 		}
 		
@@ -634,6 +672,12 @@ function MBusClient (options = null) {
 		this.__socketConnected = 0;
 	}
 
+	this.__commandRegisterResponse = function (thiz, context, message, status) {
+	}
+	
+	this.__commandUnegisterResponse = function (thiz, context, message, status) {
+	}
+	
 	this.__commandSubscribeResponse = function (thiz, context, message, status) {
 		subscription = context;
 		if (status != MBusClientCommandStatus.Success) {
@@ -641,18 +685,18 @@ function MBusClient (options = null) {
 				cstatus = MBusClientSubscribeStatus.InternalError;
 			} else if (status == MBusClientCommandStatus.Timeout) {
 				cstatus = MBusClientSubscribeStatus.Timeout;
+			} else if (status == MBusClientCommandStatus.Canceled) {
+				cstatus = MBusClientSubscribeStatus.Canceled;
 			} else {
 				cstatus = MBusClientSubscribeStatus.InternalError;
 			}
 		} else if (message.getResponseStatus() == 0) {
 			cstatus = MBusClientSubscribeStatus.Success;
-			if (subscription != null) {
-				thiz.__subscriptions.push(subscription);
-			}
+			thiz.__subscriptions.push(subscription);
 		} else {
 			cstatus = MBusClientSubscribeStatus.InternalError;
 		}
-		thiz.__notifySubscribe(message.getRequestPayload()["source"], message.getRequestPayload()["event"], cstatus);
+		thiz.__notifySubscribe(subscription.source, subscription.identifier, cstatus);
 	}
 
 	this.__commandUnsubscribeResponse = function (thiz, context, message, status) {
@@ -662,30 +706,49 @@ function MBusClient (options = null) {
 				cstatus = MBusClientUnsubscribeStatus.InternalError;
 			} else if (status == MBusClientCommandStatus.Timeout) {
 				cstatus = MBusClientUnsubscribeStatus.Timeout;
+			} else if (status == MBusClientCommandStatus.Canceled) {
+				cstatus = MBusClientUnsubscribeStatus.Canceled;
 			} else {
 				cstatus = MBusClientUnsubscribeStatus.InternalError;
 			}
 		} else if (message.getResponseStatus() == 0) {
 			cstatus = MBusClientUnsubscribeStatus.Success;
-			if (subscription != null) {
-				thiz.__subscriptions.remove(subscription);
-			}
+			thiz.__subscriptions.remove(subscription);
 		} else {
 			cstatus = MBusClientUnsubscribeStatus.InternalError;
 		}
-		thiz.__notifyUnsubscribe(message.getRequestPayload()["source"], message.getRequestPayload()["event"], cstatus);
+		thiz.__notifyUnsubscribe(subscription.source, subscription.identifier, cstatus);
 	}
 
+	this.__commandEventResponse = function (thiz, context, message, status) {
+		if (status != MBusClientCommandStatus.Success) {
+			if (status == MBusClientCommandStatus.InternalError) {
+				cstatus = MBusClientPublishStatus.InternalError;
+			} else if (status == MBusClientCommandStatus.Timeout) {
+				cstatus = MBusClientPublishStatus.Timeout;
+			} else if (status == MBusClientCommandStatus.Canceled) {
+				cstatus = MBusClientPublishStatus.Canceled;
+			} else {
+				cstatus = MBusClientPublishStatus.InternalError;
+			}
+		} else if (message.getResponseStatus() == 0) {
+			cstatus = MBusClientPublishStatus.Success;
+		} else {
+			cstatus = MBusClientPublishStatus.InternalError;
+		}
+		thiz.__notifyPublish(message.getRequestPayload(), cstatus);
+	}
+	
 	this.__commandCreateResponse = function (thiz, context, message, status) {
 		if (status != MBusClientCommandStatus.Success) {
 			if (status == MBusClientCommandStatus.InternalError) {
-				thiz.__notifyConnect(MBusClientConnectStatus.ServerError);
+				thiz.__notifyConnect(MBusClientConnectStatus.InternalError);
 			} else if (status == MBusClientCommandStatus.Timeout) {
 				thiz.__notifyConnect(MBusClientConnectStatus.Timeout);
 			} else if (status == MBusClientCommandStatus.Canceled) {
 				thiz.__notifyConnect(MBusClientConnectStatus.Canceled);
 			} else {
-				thiz.__notifyConnect(MBusClientConnectStatus.ServerError);
+				thiz.__notifyConnect(MBusClientConnectStatus.InternalError);
 			}
 			thiz.__reset();
 			thiz.__state = MBusClientState.Disconnected;
@@ -732,7 +795,7 @@ function MBusClient (options = null) {
 			identifier == MBUS_SERVER_EVENT_PONG) {
 			this.__pingWaitPong = 0;
 			this.__pingMissedCount = 0;
-			this.__pongRecvTsms = mbus_clock_get();
+			this.__pongRecvTsms = mbus_clock_monotonic();
 		} else {
 			callback = this.__options.onMessage;
 			callbackContext = this.__options.onContext
@@ -904,6 +967,10 @@ MBusClient.prototype.unsubscribe = function (event, source = null, timeout = nul
 		return -1;
 	}
 	subscription = subscriptions[0];
+	if (subscription == null) {
+		console.log("can not find subscription");
+		return -1;
+	}
     payload = {};
     payload["source"] = source;
     payload["event"] = event;

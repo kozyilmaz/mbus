@@ -1,6 +1,6 @@
 
 #
-# Copyright (c) 2014-2017, Alper Akcan <alper.akcan@gmail.com>
+# Copyright (c) 2014-2018, Alper Akcan <alper.akcan@gmail.com>
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -10,7 +10,7 @@
 #   # Redistributions in binary form must reproduce the above copyright
 #      notice, this list of conditions and the following disclaimer in the
 #      documentation and/or other materials provided with the distribution.
-#   # Neither the name of the <Alper Akcan> nor the
+#   # Neither the name of the copyright holder nor the
 #      names of its contributors may be used to endorse or promote products
 #      derived from this software without specific prior written permission.
 #
@@ -35,6 +35,8 @@ import json
 import collections
 import select
 import struct
+import copy
+
 try:
     import ssl
 except ImportError:
@@ -67,26 +69,25 @@ MBUS_SERVER_COMMAND_CREATE                  = "command.create"
 MBUS_SERVER_COMMAND_EVENT                   = "command.event"
 MBUS_SERVER_COMMAND_CALL                    = "command.call"
 MBUS_SERVER_COMMAND_RESULT                  = "command.result"
-MBUS_SERVER_COMMAND_STATUS                  = "command.status"
-MBUS_SERVER_COMMAND_CLIENTS                 = "command.clients"
 MBUS_SERVER_COMMAND_SUBSCRIBE               = "command.subscribe"
 MBUS_SERVER_COMMAND_UNSUBSCRIBE             = "command.unsubscribe"
 MBUS_SERVER_COMMAND_REGISTER                = "command.register"
 MBUS_SERVER_COMMAND_UNREGISTER              = "command.unregister"
-MBUS_SERVER_COMMAND_CLOSE                   = "command.close"
 
 MBUS_SERVER_EVENT_CONNECTED                 = "org.mbus.server.event.connected"
 MBUS_SERVER_EVENT_DISCONNECTED              = "org.mbus.server.event.disconnected"
 MBUS_SERVER_EVENT_SUBSCRIBED                = "org.mbus.server.event.subscribed"
 MBUS_SERVER_EVENT_UNSUBSCRIBED              = "org.mbus.server.event.unsubscribed"
+MBUS_SERVER_EVENT_REGISTERED                = "org.mbus.server.event.regitered"
+MBUS_SERVER_EVENT_UNREGISTERED              = "org.mbus.server.event.unregitered"
 
 MBUS_SERVER_EVENT_PING                      = "org.mbus.server.event.ping"
 MBUS_SERVER_EVENT_PONG                      = "org.mbus.server.event.pong"
 
 try:
-    mbus_clock_get = time.monotonic
+    mbus_clock_monotonic = time.monotonic
 except AttributeError:
-    def mbus_clock_get ():
+    def mbus_clock_monotonic ():
         return time.time() * 1000
 
 def mbus_clock_after (a, b):
@@ -99,7 +100,7 @@ def mbus_clock_before (a, b):
     return mbus_clock_after(b, a)
 
 class MBusClientDefaults:
-    ClientIdentifier = None
+    Identifier        = None
     
     ServerTCPProtocol = "tcp"
     ServerTCPAddress  = "127.0.0.1"
@@ -143,7 +144,7 @@ class MBusClientConnectStatus:
     Timeout                 = 5
     Canceled                = 6
     InvalidProtocolVersion  = 7
-    InvalidClientIdentifier = 8
+    InvalidIdentifier       = 8
     ServerError             = 9
     
 def MBusClientConnectStatusString (status):
@@ -163,8 +164,8 @@ def MBusClientConnectStatusString (status):
         return "connection canceled"
     if (status == MBusClientConnectStatus.InvalidProtocolVersion):
         return "invalid protocol version"
-    if (status == MBusClientConnectStatus.InvalidClientIdentifier):
-        return "invalid client identifier"
+    if (status == MBusClientConnectStatus.InvalidIdentifier):
+        return "invalid identifier"
     if (status == MBusClientConnectStatus.ServerError):
         return "server error"
     return "unknown"
@@ -298,15 +299,18 @@ class MBusClientOptions (object):
     
     def __init__ (self):
         self.identifier       = None
+        
         self.serverProtocol   = None
         self.serverAddress    = None
         self.serverPort       = None
+        
         self.connectTimeout   = None
         self.connectInterval  = None
         self.subscribeTimeout = None
         self.registerTimeout  = None
         self.commandTimeout   = None
         self.publishTimeout   = None
+        
         self.pingInterval     = None
         self.pingTimeout      = None
         self.pingThreshold    = None
@@ -314,6 +318,7 @@ class MBusClientOptions (object):
         self.onConnect        = None
         self.onDisconnect     = None
         self.onMessage        = None
+        self.onResult         = None
         self.onRoutine        = None
         self.onPublish        = None
         self.onSubscribe      = None
@@ -348,7 +353,7 @@ class MBusClientRequest (object):
         self.callback    = callback
         self.context     = context
         self.timeout     = timeout
-        self.createdAt   = mbus_clock_get()
+        self.createdAt   = mbus_clock_monotonic()
     
     def stringify (self):
         request = {}
@@ -416,7 +421,12 @@ class MBusClient (object):
             self.__options.onUnregistered(self, self.__options.onContext, command, status)
 
     def __notifyCommand (self, request, response, status):
+        callback = self.__options.onResult
+        context = self.__options.onContext
         if (request.callback != None):
+            callback = request.callback
+            context = request.context
+        if (callback != None):
             message = MBusClientMessageCommand(request, response)
             request.callback(self, request.context, message, status)
 
@@ -514,15 +524,16 @@ class MBusClient (object):
                 cstatus = MBusClientSubscribeStatus.InternalError
             elif (status == MBusClientCommandStatus.Timeout):
                 cstatus = MBusClientSubscribeStatus.Timeout
+            elif (status == MBusClientCommandStatus.Canceled):
+                cstatus = MBusClientSubscribeStatus.Canceled
             else:
                 cstatus = MBusClientSubscribeStatus.InternalError
         elif (message.getResponseStatus() == 0):
             cstatus = MBusClientSubscribeStatus.Success
-            if (subscription != None):
-                self.__subscriptions.append(subscription)
+            this.__subscriptions.append(subscription)
         else:
             cstatus = MBusClientSubscribeStatus.InternalError
-        self.__notifySubscribe(message.getRequestPayload()["source"], message.getRequestPayload()["event"], cstatus)
+        this.__notifySubscribe(subscription.source, subscription.identifier, cstatus)
     
     def __commandUnsubscribeResponse (self, this, context, message, status):
         subscription = context
@@ -531,15 +542,16 @@ class MBusClient (object):
                 cstatus = MBusClientUnsubscribeStatus.InternalError
             elif (status == MBusClientCommandStatus.Timeout):
                 cstatus = MBusClientUnsubscribeStatus.Timeout
+            elif (status == MBusClientCommandStatus.Canceled):
+                cstatus = MBusClientUnsubscribeStatus.Canceled
             else:
                 cstatus = MBusClientUnsubscribeStatus.InternalError
         elif (message.getResponseStatus() == 0):
             cstatus = MBusClientUnsubscribeStatus.Success
-            if (subscription != None):
-                self.__subscriptions.remove(subscription)
+            this.__subscriptions.remove(subscription)
         else:
             cstatus = MBusClientUnsubscribeStatus.InternalError
-        self.__notifyUnsubscribe(message.getRequestPayload()["source"], message.getRequestPayload()["event"], cstatus)
+        this.__notifyUnsubscribe(subscription.source, subscription.identifier, cstatus)
     
     def __commandEventResponse (self, this, context, message, status):
         if (status != MBusClientCommandStatus.Success):
@@ -547,47 +559,57 @@ class MBusClient (object):
                 cstatus = MBusClientPublishStatus.InternalError
             elif (status == MBusClientCommandStatus.Timeout):
                 cstatus = MBusClientPublishStatus.Timeout
+            elif (status == MBusClientCommandStatus.Canceled):
+                cstatus = MBusClientPublishStatus.Canceled
             else:
                 cstatus = MBusClientPublishStatus.InternalError
         elif (message.getResponseStatus() == 0):
             cstatus = MBusClientPublishStatus.Success
         else:
             cstatus = MBusClientPublishStatus.InternalError
-        self.__notifyPublish(message.getRequestPayload(), status)
+        this.__notifyPublish(message.getRequestPayload(), status)
     
     def __commandCreateResponse (self, this, context, message, status):
         if (status != MBusClientCommandStatus.Success):
             if (status == MBusClientCommandStatus.InternalError):
-                this.__notifyConnect(MBusClientConnectStatus.ServerError)
+                this.__notifyConnect(MBusClientConnectStatus.InternalError)
             elif (status == MBusClientCommandStatus.Timeout):
                 this.__notifyConnect(MBusClientConnectStatus.Timeout)
             elif (status == MBusClientCommandStatus.Canceled):
                 this.__notifyConnect(MBusClientConnectStatus.Canceled)
             else:
-                this.__notifyConnect(MBusClientConnectStatus.ServerError)
+                this.__notifyConnect(MBusClientConnectStatus.InternalError)
             this.__reset()
-            this.__state = MBusClientState.Disconnected
-            this.__notifyDisonnect(MBusClientDisconnectStatus.InternalError)
+            if (this.__options.connectInterval > 0):
+                this.__state = MBusClientState.Connecting
+            else:
+                this.__state = MBusClientState.Disconnected
             return
         if (message.getResponseStatus() != 0):
             this.__notifyConnect(MBusClientConnectStatus.ServerError)
             this.__reset()
-            this.__state = MBusClientState.Disconnected
-            this.__notifyDisonnect(MBusClientDisconnectStatus.InternalError)
+            if (this.__options.connectInterval > 0):
+                this.__state = MBusClientState.Connecting
+            else:
+                this.__state = MBusClientState.Disconnected
             return
         payload = message.getResponsePayload()
         if (payload == None):
             this.__notifyConnect(MBusClientConnectStatus.ServerError)
             this.__reset()
-            this.__state = MBusClientState.Disconnected
-            this.__notifyDisonnect(MBusClientDisconnectStatus.InternalError)
+            if (this.__options.connectInterval > 0):
+                this.__state = MBusClientState.Connecting
+            else:
+                this.__state = MBusClientState.Disconnected
             return
         this.__identifier = payload["identifier"]
         if (this.__identifier == None):
             this.__notifyConnect(MBusClientConnectStatus.ServerError)
             this.__reset()
-            this.__state = MBusClientState.Disconnected
-            this.__notifyDisonnect(MBusClientDisconnectStatus.InternalError)
+            if (this.__options.connectInterval > 0):
+                this.__state = MBusClientState.Connecting
+            else:
+                this.__state = MBusClientState.Disconnected
             return
         this.__pingInterval = payload["ping"]["interval"]
         this.__pingTimeout = payload["ping"]["timeout"]
@@ -679,7 +701,7 @@ class MBusClient (object):
             identifier == MBUS_SERVER_EVENT_PONG):
             self.__pingWaitPong = 0
             self.__pingMissedCount = 0
-            self.__pongRecvTsms = mbus_clock_get()
+            self.__pongRecvTsms = mbus_clock_monotonic()
         else:
             callback = self.__options.onMessage
             callbackContext = self.__options.onContext
@@ -710,8 +732,8 @@ class MBusClient (object):
         self.__pendings        = collections.deque()
         self.__routines        = collections.deque()
         self.__subscriptions   = collections.deque()
-        self.__incoming        = None
-        self.__outgoing        = None
+        self.__incoming        = bytearray()
+        self.__outgoing        = bytearray()
         self.__identifier      = None
         self.__connectTsms     = 0
         self.__pingInterval    = None
@@ -733,10 +755,10 @@ class MBusClient (object):
         else:
             if (not isinstance(options, MBusClientOptions)):
                 raise ValueError("options is invalid")
-            self.__options = options
+            self.__options = copy.deepcopy(options)
         
         if (self.__options.identifier == None):
-            self.__options.identifier = MBusClientDefaults.ClientIdentifier
+            self.__options.identifier = MBusClientDefaults.Identifier
         
         if (self.__options.connectTimeout == None or
             self.__options.connectTimeout <= 0):
@@ -780,7 +802,7 @@ class MBusClient (object):
                 self.__options.serverPort = MBusClientDefaults.ServerTCPPort
         else:
             raise ValueError("invalid server protocol: {}".format(self.__options.serverProtocol))
-    
+
     def getOptions (self):
         options = None
         options = self.__options
@@ -876,7 +898,7 @@ class MBusClient (object):
                 s.identifier == event):
                 subscription = s
                 break
-        if (subscription != None):
+        if (subscription == None):
             raise ValueError("can not find subscription for source: {}, event: {}".format(source, event))
         payload = {}
         payload["source"] = source
@@ -922,7 +944,7 @@ class MBusClient (object):
     def unregister (self, command):
         raise ValueError("not implemented yet")
     
-    def command (self, destination, command, payload, callback = None, context = None, timeout = None):
+    def command (self, destination, command, payload = None, callback = None, context = None, timeout = None):
         if (destination == None):
             raise ValueError("destination is invalid")
         if (command == None):
@@ -946,7 +968,7 @@ class MBusClient (object):
         return 0
 
     def getRunTimeout (self):
-        current = mbus_clock_get()
+        current = mbus_clock_monotonic()
         timeout = MBusClientDefaults.RunTimeout
         if (self.__state == MBusClientState.Connecting):
             if (self.__socket == None):
@@ -996,10 +1018,10 @@ class MBusClient (object):
     def run (self, timeout = -1):
         if (self.__state == MBusClientState.Connecting):
             if (self.__socket == None):
-                current = mbus_clock_get()
+                current = mbus_clock_monotonic()
                 if (self.__options.connectInterval <= 0 or
                     mbus_clock_after(current, self.__connectTsms + self.__options.connectInterval)):
-                    self.__connectTsms = mbus_clock_get()
+                    self.__connectTsms = mbus_clock_monotonic()
                     rc = self.__runConnect()
                     if (rc != 0):
                         raise ValueError("can not connect client")
@@ -1061,7 +1083,7 @@ class MBusClient (object):
             
             if (fd == self.__socket.fileno()):
                 if (event & select.POLLIN):
-                    dlen = 0
+                    data = bytearray()
                     try:
                         data = self.__socket.recv(4096)
                     except socket.error as error:
@@ -1072,7 +1094,7 @@ class MBusClient (object):
                         if error.errno == errno.EWOULDBLOCK:
                             pass
                         raise ValueError("recv failed")
-                    if (len(data) == 0):
+                    if (len(data) <= 0):
                         self.__reset()
                         self.__state = MBusClientState.Disconnected
                         self.__notifyDisonnect(MBusClientDisconnectStatus.ConnectionClosed)
@@ -1113,7 +1135,7 @@ class MBusClient (object):
                         if (dlen > 0):
                             self.__outgoing = self.__outgoing[dlen:]
         
-        current = mbus_clock_get()
+        current = mbus_clock_monotonic()
 
         while len(self.__incoming) >= 4:
             dlen, = struct.unpack("!I", self.__incoming[0:4])
@@ -1144,7 +1166,8 @@ class MBusClient (object):
 
         if (self.__state == MBusClientState.Connected and
             self.__pingInterval > 0):
-            if (mbus_clock_after(current, self.__pingSendTsms + self.__pingInterval)):
+            if (self.__pingWaitPong == 0 and
+                mbus_clock_after(current, self.__pingSendTsms + self.__pingInterval)):
                 self.__pingSendTsms = current
                 self.__pongRecvTsms = 0
                 self.__pingWaitPong = 1
@@ -1166,7 +1189,7 @@ class MBusClient (object):
                     self.__state = MBusClientState.Disconnected
                 return 0
 
-        for request in self.__requests:
+        for request in list(self.__requests):
             if (request.timeout < 0 or
                 mbus_clock_before(current, request.createdAt + request.timeout)):
                 continue
@@ -1187,8 +1210,9 @@ class MBusClient (object):
                     self.__notifyUnregistered(request.payload["command"], MBusClientUnregisterStatus.Timeout)
                 else:
                     self.__notifyCommand(request, None, MBusClientCommandStatus.Timeout)
+            self.__requests.remove(request)
 
-        for request in self.__pendings:
+        for request in list(self.__pendings):
             if (request.timeout < 0 or
                 mbus_clock_before(current, request.createdAt + request.timeout)):
                 continue
@@ -1209,6 +1233,7 @@ class MBusClient (object):
                     self.__notifyUnregistered(request.payload["command"], MBusClientUnregisterStatus.Timeout)
                 else:
                     self.__notifyCommand(request, None, MBusClientCommandStatus.Timeout)
+            self.__pendings.remove(request)
 
         while (len(self.__requests) > 0):
             request = self.__requests.popleft()

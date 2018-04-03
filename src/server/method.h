@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2014-2017, Alper Akcan <alper.akcan@gmail.com>
+ * Copyright (c) 2014-2018, Alper Akcan <alper.akcan@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,7 +10,7 @@
  *    * Redistributions in binary form must reproduce the above copyright
  *      notice, this list of conditions and the following disclaimer in the
  *      documentation and/or other materials provided with the distribution.
- *    * Neither the name of the <Alper Akcan> nor the
+ *    * Neither the name of the copyright holder nor the
  *      names of its contributors may be used to endorse or promote products
  *      derived from this software without specific prior written permission.
  *
@@ -26,19 +26,25 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <time.h>
+struct client;
+struct mbus_json;
 
-unsigned long long command_clock_monotonic (void)
-{
-	struct timespec ts;
-	unsigned long long tsec;
-	unsigned long long tusec;
-	unsigned long long _clock;
-	if (clock_gettime(CLOCK_MONOTONIC_RAW, &ts) < 0) {
-		return 0;
-	}
-	tsec = ((unsigned long long) ts.tv_sec) * 1000;
-	tusec = ((unsigned long long) ts.tv_nsec) / 1000 / 1000;
-	_clock = tsec + tusec;
-	return _clock;
-}
+struct method {
+	TAILQ_ENTRY(method) methods;
+};
+TAILQ_HEAD(methods, method);
+
+struct method * mbus_server_method_create_request (struct client *source, const char *string);
+struct method * mbus_server_method_create_response (const char *type, const char *source, const char *identifier, int sequence, const struct mbus_json *payload);
+void mbus_server_method_destroy (struct method *method);
+
+const char * mbus_server_method_get_request_type (struct method *method);
+const char * mbus_server_method_get_request_destination (struct method *method);
+const char * mbus_server_method_get_request_identifier (struct method *method);
+int mbus_server_method_get_request_sequence (struct method *method);
+struct mbus_json * mbus_server_method_get_request_payload (struct method *method);
+char * mbus_server_method_get_request_string (struct method *method);
+int mbus_server_method_set_result_code (struct method *method, int code);
+int mbus_server_method_set_result_payload (struct method *method, struct mbus_json *payload);
+char * mbus_server_method_get_result_string (struct method *method);
+struct client * mbus_server_method_get_source (struct method *method);

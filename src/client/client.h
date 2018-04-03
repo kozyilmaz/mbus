@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2014-2017, Alper Akcan <alper.akcan@gmail.com>
+ * Copyright (c) 2014-2018, Alper Akcan <alper.akcan@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,7 +10,7 @@
  *    * Redistributions in binary form must reproduce the above copyright
  *      notice, this list of conditions and the following disclaimer in the
  *      documentation and/or other materials provided with the distribution.
- *    * Neither the name of the <Alper Akcan> nor the
+ *    * Neither the name of the copyright holder nor the
  *      names of its contributors may be used to endorse or promote products
  *      derived from this software without specific prior written permission.
  *
@@ -62,7 +62,7 @@ enum mbus_client_connect_status {
 	mbus_client_connect_status_timeout,
 	mbus_client_connect_status_canceled,
 	mbus_client_connect_status_invalid_protocol_version,
-	mbus_client_connect_status_invalid_client_identfier,
+	mbus_client_connect_status_invalid_identfier,
 	mbus_client_connect_status_server_error
 };
 
@@ -184,6 +184,7 @@ struct mbus_client_options {
 		void (*connect) (struct mbus_client *client, void *context, enum mbus_client_connect_status status);
 		void (*disconnect) (struct mbus_client *client, void *context, enum mbus_client_disconnect_status status);
 		void (*message) (struct mbus_client *client, void *context, struct mbus_client_message_event *message);
+		void (*result) (struct mbus_client *client, void *context, struct mbus_client_message_command *message, enum mbus_client_command_status status);
 		int (*routine) (struct mbus_client *client, void *context, struct mbus_client_message_routine *message);
 		void (*publish) (struct mbus_client *client, void *context, struct mbus_client_message_event *message, enum mbus_client_publish_status status);
 		void (*subscribe) (struct mbus_client *client, void *context, const char *source, const char *event, enum mbus_client_subscribe_status status);

@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2014-2017, Alper Akcan <alper.akcan@gmail.com>
+ * Copyright (c) 2014-2018, Alper Akcan <alper.akcan@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,7 +10,7 @@
  *    * Redistributions in binary form must reproduce the above copyright
  *      notice, this list of conditions and the following disclaimer in the
  *      documentation and/or other materials provided with the distribution.
- *    * Neither the name of the <Alper Akcan> nor the
+ *    * Neither the name of the copyright holder nor the
  *      names of its contributors may be used to endorse or promote products
  *      derived from this software without specific prior written permission.
  *
@@ -26,10 +26,64 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-unsigned long long command_clock_monotonic (void);
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-__attribute__((unused)) static int command_clock_after (unsigned long long a, unsigned long long b)
+#include "mbus/debug.h"
+#include "mbus/tailq.h"
+#include "command.h"
+
+struct private {
+	struct command command;
+	char *identifier;
+};
+
+const char * mbus_server_command_get_identifier (const struct command *command)
 {
-	return (((long long) ((b) - (a)) < 0)) ? 1 : 0;
+	const struct private *private;
+	if (command == NULL) {
+		return NULL;
+	}
+	private = (const struct private *) command;
+	return private->identifier;
 }
-#define command_clock_before(a, b)        command_clock_after(b, a)
+
+void mbus_server_command_destroy (struct command *command)
+{
+	struct private *private;
+	if (command == NULL) {
+		return;
+	}
+	private = (struct private *) command;
+	if (private->identifier != NULL) {
+		free(private->identifier);
+	}
+	free(private);
+}
+
+struct command * mbus_server_command_create (const char *identifier)
+{
+	struct private *private;
+	private = NULL;
+	if (identifier == NULL) {
+		mbus_errorf("identifier is null");
+		goto bail;
+	}
+	private = malloc(sizeof(struct private));
+	if (private == NULL) {
+		mbus_errorf("can not allocate memory");
+		goto bail;
+	}
+	memset(private, 0, sizeof(struct private));
+	private->identifier = strdup(identifier);
+	if (private->identifier == NULL) {
+		mbus_errorf("can not allocate memory");
+		goto bail;
+	}
+	return &private->command;
+bail:	if (private != NULL) {
+		mbus_server_command_destroy(&private->command);
+	}
+	return NULL;
+}

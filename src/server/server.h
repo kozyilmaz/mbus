@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2014-2017, Alper Akcan <alper.akcan@gmail.com>
+ * Copyright (c) 2014-2018, Alper Akcan <alper.akcan@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,7 +10,7 @@
  *    * Redistributions in binary form must reproduce the above copyright
  *      notice, this list of conditions and the following disclaimer in the
  *      documentation and/or other materials provided with the distribution.
- *    * Neither the name of the <Alper Akcan> nor the
+ *    * Neither the name of the copyright holder nor the
  *      names of its contributors may be used to endorse or promote products
  *      derived from this software without specific prior written permission.
  *
@@ -136,6 +136,60 @@
  */
 #define MBUS_SERVER_COMMAND_RESULT		"command.result"
 
+/* command subscribe
+ *
+ * input:
+ * {
+ *     "source": "application name",
+ *     "event" : "event name"
+ * }
+ *
+ * output:
+ * {
+ * }
+ */
+#define MBUS_SERVER_COMMAND_SUBSCRIBE		"command.subscribe"
+
+/* command unsubscribe
+ *
+ * input:
+ * {
+ *     "source": "application name",
+ *     "event" : "event name"
+ * }
+ *
+ * output:
+ * {
+ * }
+ */
+#define MBUS_SERVER_COMMAND_UNSUBSCRIBE		"command.unsubscribe"
+
+/* command register
+ *
+ * input:
+ * {
+ *     "command" : "command name"
+ * }
+ *
+ * output:
+ * {
+ * }
+ */
+#define MBUS_SERVER_COMMAND_REGISTER		"command.register"
+
+/* command unregister
+ *
+ * input:
+ * {
+ *     "command" : "command name"
+ * }
+ *
+ * output:
+ * {
+ * }
+ */
+#define MBUS_SERVER_COMMAND_UNREGISTER		"command.unregister"
+
 /* command status
  *
  * input:
@@ -216,60 +270,6 @@
  */
 #define MBUS_SERVER_COMMAND_CLIENT		"command.client"
 
-/* command subscribe
- *
- * input:
- * {
- *     "source": "application name",
- *     "event" : "event name"
- * }
- *
- * output:
- * {
- * }
- */
-#define MBUS_SERVER_COMMAND_SUBSCRIBE		"command.subscribe"
-
-/* command unsubscribe
- *
- * input:
- * {
- *     "source": "application name",
- *     "event" : "event name"
- * }
- *
- * output:
- * {
- * }
- */
-#define MBUS_SERVER_COMMAND_UNSUBSCRIBE		"command.unsubscribe"
-
-/* command register
- *
- * input:
- * {
- *     "command" : "command name"
- * }
- *
- * output:
- * {
- * }
- */
-#define MBUS_SERVER_COMMAND_REGISTER		"command.register"
-
-/* command unregister
- *
- * input:
- * {
- *     "command" : "command name"
- * }
- *
- * output:
- * {
- * }
- */
-#define MBUS_SERVER_COMMAND_UNREGISTER		"command.unregister"
-
 /* command close
  *
  * input:
@@ -335,6 +335,24 @@
  */
 #define MBUS_SERVER_EVENT_UNSUBSCRIBED		"org.mbus.server.event.unsubscribed"
 
+/* event registered
+ *
+ * {
+ *   "source"      : "application name",
+ *   "identifier"  : "command name"
+ * }
+ */
+#define MBUS_SERVER_EVENT_REGISTERED		"org.mbus.server.event.registered"
+
+/* event unregistered
+ *
+ * {
+ *   "source"      : "application name",
+ *   "identifier"  : "command name"
+ * }
+ */
+#define MBUS_SERVER_EVENT_UNREGISTERED		"org.mbus.server.event.unregistered"
+
 struct mbus_server;
 
 struct mbus_server_options {
@@ -396,6 +414,18 @@ int mbus_server_uds_enabled (struct mbus_server *server);
 const char * mbus_server_uds_address (struct mbus_server *server);
 int mbus_server_uds_port (struct mbus_server *server);
 
-int mbus_server_websocket_enabled (struct mbus_server *server);
-const char * mbus_server_websocket_address (struct mbus_server *server);
-int mbus_server_websocket_port (struct mbus_server *server);
+int mbus_server_ws_enabled (struct mbus_server *server);
+const char * mbus_server_ws_address (struct mbus_server *server);
+int mbus_server_ws_port (struct mbus_server *server);
+
+int mbus_server_tcps_enabled (struct mbus_server *server);
+const char * mbus_server_tcps_address (struct mbus_server *server);
+int mbus_server_tcps_port (struct mbus_server *server);
+
+int mbus_server_udss_enabled (struct mbus_server *server);
+const char * mbus_server_udss_address (struct mbus_server *server);
+int mbus_server_udss_port (struct mbus_server *server);
+
+int mbus_server_wss_enabled (struct mbus_server *server);
+const char * mbus_server_wss_address (struct mbus_server *server);
+int mbus_server_wss_port (struct mbus_server *server);

@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 #
-# Copyright (c) 2014-2017, Alper Akcan <alper.akcan@gmail.com>
+# Copyright (c) 2014-2018, Alper Akcan <alper.akcan@gmail.com>
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -11,7 +11,7 @@
 #   # Redistributions in binary form must reproduce the above copyright
 #      notice, this list of conditions and the following disclaimer in the
 #      documentation and/or other materials provided with the distribution.
-#   # Neither the name of the <Alper Akcan> nor the
+#   # Neither the name of the copyright holder nor the
 #      names of its contributors may be used to endorse or promote products
 #      derived from this software without specific prior written permission.
 #
@@ -32,6 +32,9 @@ import getopt
 import json
 import MBusClient as MBusClient
 
+o_source = None
+o_events = []
+
 mbus_client_identifier        = None
 mbus_client_server_protocol   = None
 mbus_client_server_address    = None
@@ -45,9 +48,9 @@ mbus_client_publish_timeout   = None
 mbus_client_ping_interval     = None
 mbus_client_ping_timeout      = None
 mbus_client_ping_threshold    = None
-subscriptions = []
 
-options, remainder = getopt.gnu_getopt(sys.argv[1:], "e:h", ["help", 
+options, remainder = getopt.gnu_getopt(sys.argv[1:], "s:e:h", ["help",
+                                                             "source=",
                                                              "event=",
                                                              "mbus-client-identifier=",
                                                              "mbus-client-server-protocol=",
@@ -67,7 +70,8 @@ options, remainder = getopt.gnu_getopt(sys.argv[1:], "e:h", ["help",
 for opt, arg in options:
     if opt in ("-h", "--help"):
         print("subscribe usage:\n" \
-              "  -e, --event                    : subscribe to an event identifier\n" \
+              "  -s, --source                   : subscribe to an event source (default: {})\n" \
+              "  -e, --event                    : subscribe to an event identifier (default: {})\n" \
               "  --mbus-debug-level             : debug level (default: error)\n" \
               "  --mbus-client-identifier       : client identifier (default: {})\n" \
               "  --mbus-client-server-protocol  : server protocol (default: {})\n" \
@@ -84,7 +88,8 @@ for opt, arg in options:
               "  --mbus-client-ping-threshold   : ping threshold (default: {})\n" \
               "  --help                         : this text" \
               .format( \
-                       MBusClient.MBusClientDefaults.ClientIdentifier, \
+                       MBusClient.MBUS_METHOD_EVENT_IDENTIFIER_ALL, \
+                       MBusClient.MBusClientDefaults.Identifier, \
                        MBusClient.MBusClientDefaults.ServerProtocol, \
                        MBusClient.MBusClientDefaults.ServerAddress, \
                        MBusClient.MBusClientDefaults.ServerPort, \
@@ -100,8 +105,10 @@ for opt, arg in options:
                     )
               )
         exit(0)
+    elif opt in ("-s", "--source"):
+        o_source = arg
     elif opt in ("-e", "--event"):
-        subscriptions.append(arg)
+        o_events.append(arg)
     elif opt == "--mbus-client-identifier":
         mbus_client_identifier = arg
     elif opt == "--mbus-client-server-protocol":
@@ -138,11 +145,11 @@ def onConnect (client, context, status):
     print("connect: {}, {}".format(status, MBusClient.MBusClientConnectStatusString(status)))
     if (status == MBusClient.MBusClientConnectStatus.Success):
         context.connected = 1
-        if (len(subscriptions) == 0):
-            client.subscribe(MBusClient.MBUS_METHOD_EVENT_IDENTIFIER_ALL)
+        if (len(o_events) == 0):
+            client.subscribe(MBusClient.MBUS_METHOD_EVENT_IDENTIFIER_ALL, None, None, o_source, None)
         else:
-            for s in subscriptions:
-                client.subscribe(s)
+            for s in o_events:
+                client.subscribe(s, None, None, o_source, None)
     else:
         if (client.getOptions().connectInterval <= 0):
             context.connected = -1

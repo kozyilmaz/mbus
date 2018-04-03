@@ -2,18 +2,18 @@
 include ../../Makefile.conf
 
 target-y = \
-	mbus-publish
+	mbus-benchmark
 
-mbus-publish_includes-y = \
+mbus-benchmark_includes-y = \
 	../../dist/include
 
-mbus-publish_libraries-y = \
+mbus-benchmark_libraries-y = \
 	../../dist/lib
 
-mbus-publish_files-y = \
-	publish.c
+mbus-benchmark_files-y = \
+	benchmark.c
 
-mbus-publish_ldflags-y = \
+mbus-benchmark_ldflags-y = \
 	-lmbus-client \
 	-lmbus-socket \
 	-lmbus-json \
@@ -24,13 +24,13 @@ mbus-publish_ldflags-y = \
 	-lmbus-compress \
 	-lmbus-debug
 
-mbus-publish_ldflags-${SSL_ENABLE} += \
+mbus-benchmark_ldflags-${SSL_ENABLE} += \
 	${ssl_ldflags-y}
 
-mbus-publish_ldflags-${ZLIB_ENABLE} += \
+mbus-benchmark_ldflags-${ZLIB_ENABLE} += \
 	${zlib_ldflags-y}
 
-mbus-publish_ldflags-y += \
+mbus-benchmark_ldflags-y += \
 	-lpthread \
 	-lm \
 	-ldl
@@ -38,8 +38,6 @@ mbus-publish_ldflags-y += \
 distdir = ../../dist
 
 dist.bin-y = \
-	mbus-publish \
-	mbus-publish.py \
-	mbus-publish.rb
+	mbus-benchmark
 
 include ../../Makefile.lib

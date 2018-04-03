@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2014-2017, Alper Akcan <alper.akcan@gmail.com>
+ * Copyright (c) 2014-2018, Alper Akcan <alper.akcan@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,7 +10,7 @@
  *    * Redistributions in binary form must reproduce the above copyright
  *      notice, this list of conditions and the following disclaimer in the
  *      documentation and/or other materials provided with the distribution.
- *    * Neither the name of the <Alper Akcan> nor the
+ *    * Neither the name of the copyright holder nor the
  *      names of its contributors may be used to endorse or promote products
  *      derived from this software without specific prior written permission.
  *
@@ -26,10 +26,10 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-unsigned long mbus_clock_get (void);
+unsigned long long mbus_clock_monotonic (void);
 
-static inline int mbus_clock_after (unsigned long a, unsigned long b)
+static inline int mbus_clock_after (unsigned long long a, unsigned long long b)
 {
-	return (((long) ((b) - (a)) < 0)) ? 1 : 0;
+	return (((long long) ((b) - (a)) < 0)) ? 1 : 0;
 }
 #define mbus_clock_before(a, b)        mbus_clock_after(b, a)
